@@ -39,8 +39,8 @@ class YorthString < YorthData
 		YorthString.new other.to_s + @value
 	end
 end
-class Code
-	def initialize code = [], enclosure = Code.new([],nil)
+class Closure
+	def initialize code = [], enclosure = Closure.new([],nil)
 		@code = code
 		@enclosure = enclosure
 		@scope = Hash[]
@@ -107,7 +107,7 @@ class Code
 		word = @code.pop
 		if word.to_i.to_s == word.to_s	then word.to_i
 		elsif word.is_a? YorthString	then word
-		elsif word.is_a? Code			then word.dup.draw
+		elsif word.is_a? Closure		then word.dup.draw
 #			begin
 #				word.dup.draw
 #			rescue YorthArgumentError
@@ -143,7 +143,7 @@ class Code
 			item = draw :block
 			puts "#{item.class} #{item.inspect}"
 		when '}'
-			block = Code.new(collect('{'),@scope.dup)
+			block = Closure.new(collect('{'),@scope.dup)
 			            return block if args.include? :block
 			@code << block
 			            draw
@@ -160,9 +160,9 @@ class Code
 	end
 end
 if inspect == "main"
-	Code.new.interpret unless ARGV[0]
+	Closure.new.interpret unless ARGV[0]
 	debug = ["--debug", "-i", "/i"].include? ARGV[0].downcase
 	ARGV.slice! 0 if debug
-	Code.new.load ARGV
-	Code.new.interpret if debug
+	Closure.new.load ARGV
+	Closure.new.interpret if debug
 end
