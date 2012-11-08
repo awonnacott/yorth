@@ -164,9 +164,10 @@ class Closure
 	end
 end
 if inspect == "main"
-	Closure.new.interpret unless ARGV[0]
+	main = Closure.new
+	main.interpret unless ARGV[0]
 	debug = ["--debug", "-i", "/i"].include? ARGV[0].downcase
 	ARGV.slice! 0 if debug
-	Closure.new.load ARGV
-	Closure.new.interpret if debug
+	main.load ARGV
+	main.interpret if debug
 end
