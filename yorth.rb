@@ -9,7 +9,8 @@ class YorthData
 		@kind = kind
 		@value = value
 	end
-	def to_s;	@value.to_s;			end
+	def dup;	Marshal.load(Marshal.dump(self))	end
+	def to_s;		@value.to_s;					end
 	def to_i
 		raise YorthTypeError.new("cannot convert #{value.class} #{@value} to an int") unless @value.to_i.to_s == @value.to_s
 		@value.to_i
@@ -27,17 +28,28 @@ class YorthData
 			@value * other
 		rescue Exception
 			raise YorthTypeError.new("cannot multiply #{@kind} #{@value} and #{other.class} #{other}") unless other.is_a? YorthData
-			@value + other.value
+			@value * other.value
 		end
 	end
 end
 class YorthString < YorthData
-	attr_reader					:value
 	def initialize(value = "")	@value = value.to_s	end
 	def + other
 		raise YorthTypeError.new("cannot concatenate YorthString #{@value} and #{other.class} #{other}") unless other.is_a? YorthString
-		YorthString.new other.to_s + @value
+		YorthString.new @value + other.to_s
 	end
+end
+class YorthArray < YorthData
+	def initialize(strings = [], enclosure = Code.new)
+		@value = []
+		while strings.include?(',')
+			comma = strings.index(',')
+			strings.slice! comma
+			@value << Closure.new(strings.slice!(0,comma), enclosure).draw
+		end
+		@value << Closure.new(strings, enclosure).draw
+	end
+#	def inspect;	@value.inspect;					end
 end
 class Closure
 	def initialize code = [], enclosure = Closure.new([],nil)
@@ -47,8 +59,8 @@ class Closure
 	end
 	def to_s;		@code.to_s;						end
 	def to_i;		dup.draw.to_i;					end
-	def inspect;	[@code, @scope].inspect;		end
 	def dup;	Marshal.load(Marshal.dump(self))	end
+	def inspect;	[@code, @scope].inspect;		end
 	def return_class;	dup.draw.class;				end
 	def has? word
 		return true unless @scope[word].nil?
@@ -128,11 +140,12 @@ class Closure
 		else			case word
 		when nil		then raise YorthArgumentError.new("ran out of values") unless args.include? :nil
 		when '='		then draw == draw
-		when '+'		then draw + draw
-		when '-'		then 0 - draw + draw
-		when '*'		then draw * draw
-		when '/'		then 1.0 / draw * draw
+		when '+'		then temp = draw; draw + temp
+		when '-'		then temp = draw; draw - temp
+		when '*'		then temp = draw; draw * temp
+		when '/'		then temp = draw; draw / temp
 		when '"'		then YorthString.new collect('"').join(" ")
+		when ']'		then YorthArray.new(collect('['), self)
 		when 'bye'		then exit
 		when 'del'		then @scope.delete @code.pop
 		when 'inspect'	then self
