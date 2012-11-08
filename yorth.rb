@@ -57,7 +57,7 @@ class Closure
 		@scope = Hash[]
 	end
 	def to_s;		@code.to_s;						end
-	def to_i;		dup.draw.to_i;					end
+	def to_i;		nil;							end
 	def dup;	Marshal.load(Marshal.dump(self))	end
 	def inspect;	[@code, @scope].inspect;		end
 	def return_class;	dup.draw.class;				end
@@ -142,13 +142,13 @@ class Closure
 		when 'del'		then @scope.delete @code.pop
 		when 'inspect'	then self
 		when 'load'		then load @code.pop
-		when 'pop'      then enclosure.draw
+		when 'pop'      then @enclosure.draw
 		when '.'		then puts draw
 		when ".."
 			item = draw :block
 			puts "#{item.class} #{item.inspect}"
 		when '}'
-			block = Closure.new(collect('{'),@scope.dup)
+			block = Closure.new(collect('{'),self)
 			            return block if args.include? :block
 			@code << block
 			            draw
