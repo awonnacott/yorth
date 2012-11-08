@@ -49,7 +49,6 @@ class YorthArray < YorthData
 		end
 		@value << Closure.new(strings, enclosure).draw
 	end
-#	def inspect;	@value.inspect;					end
 end
 class Closure
 	def initialize code = [], enclosure = Closure.new([],nil)
@@ -120,12 +119,6 @@ class Closure
 		if word.to_i.to_s == word.to_s	then word.to_i
 		elsif word.is_a? YorthString	then word
 		elsif word.is_a? Closure		then word.dup.draw
-#			begin
-#				word.dup.draw
-#			rescue YorthArgumentError
-#				@code = @code + word.code
-#				draw
-#			end
 		elsif (@scope[word]) && (args.include? :block)
 			@scope[word]
 		elsif @scope[word]
@@ -136,7 +129,6 @@ class Closure
 		elsif has? word
 			@code << resolve(word)
 			draw
-# outdated because {} turns into codeblocks now?
 		else			case word
 		when nil		then raise YorthArgumentError.new("ran out of values") unless args.include? :nil
 		when '='		then draw == draw
@@ -163,7 +155,6 @@ class Closure
 		when ')'
 			collect '('
 			draw args
-#	Implement loops
 		when 'set'
 			@scope[@code.pop] = draw :block
 			nil
