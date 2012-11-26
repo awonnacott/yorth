@@ -21,3 +21,6 @@ doc/
 .DS_Store
 lib/.DS_Store
 .buildpath
+
+# Kevin artifacts
+.classpath
