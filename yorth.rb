@@ -165,6 +165,16 @@ class Closure
 end
 if inspect == "main"
 	main = Closure.new
+	rubydir = "."
+	rubypath = ["#{rubydir}/lib", "/usr/share/yorth/lib", "/usr/lib/yorth/*", "~/.yorth/lib"]
+	rubypath.each do |dir|
+		begin
+			Dir.glob("#{File.expand_path(dir)}/*.wye") do |library|
+				main.load library
+			end
+		rescue Errno::ENOENT
+		end
+	end
 	main.interpret unless ARGV[0]
 	debug = ["--debug", "-i", "/i"].include? ARGV[0].downcase
 	ARGV.slice! 0 if debug

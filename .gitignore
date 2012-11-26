@@ -16,3 +16,8 @@ tmp
 .yardoc
 _yardoc
 doc/
+
+# Mac artifacts
+.DS_Store
+lib/.DS_Store
+.buildpath
