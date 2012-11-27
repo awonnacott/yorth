@@ -60,7 +60,6 @@ class Closure
 	def to_i;		nil;							end
 	def dup;	Marshal.load(Marshal.dump(self))	end
 	def inspect;	[@code, @scope].inspect;		end
-	def return_class;	dup.draw.class;				end
 	def has? word
 		return true unless @scope[word].nil?
 		return false if @enclosure.nil?
@@ -74,18 +73,29 @@ class Closure
 	def load *args
 		args.flatten!
 		args.each do |arg|
+			library = arg
+			$libpath.each do |dir|
+				begin
+					Dir.glob("#{File.expand_path(dir)}/#{arg}") do |lib|
+						library = lib
+					end
+				rescue Errno::ENOENT
+				end
+			end
 			begin
-				File.open(arg).each do |line|
+				File.open(library).each do |line|
 					begin
 						evaluate line.split
 					rescue YorthError => error
 						puts "#{error.class}: #{error}"
 					end
 				end
-			rescue Exception
+				puts "#{arg} loaded"
+			rescue Errno::ENOENT
 				puts "#{arg} does not exist"
 			end
 		end
+		nil
 	end
 	def interpret
 		puts "yorth interpreter initialized"
@@ -119,11 +129,6 @@ class Closure
 		if word.to_i.to_s == word.to_s	then word.to_i
 		elsif word.is_a? YorthString	then word
 		elsif word.is_a? Closure		then word.dup.draw
-		elsif (@scope[word]) && (args.include? :block)
-			@scope[word]
-		elsif @scope[word]
-			@code << @scope[word]
-			draw
 		elsif (has? word) && (args.include? :block)
 			resolve word
 		elsif has? word
@@ -132,12 +137,17 @@ class Closure
 		else			case word
 		when nil		then raise YorthArgumentError.new("ran out of values") unless args.include? :nil
 		when '='		then draw == draw
+		when "~"		then draw != draw
 		when '+'		then temp = draw; draw + temp
 		when '-'		then temp = draw; draw - temp
 		when '*'		then temp = draw; draw * temp
 		when '/'		then temp = draw; draw / temp
+		when 'or'		then temp = draw; draw or temp
+		when 'not'		then not draw
 		when '"'		then YorthString.new collect('"').join(" ")
 		when ']'		then YorthArray.new(collect('['), self)
+		when 'true'		then true
+		when 'false'	then false
 		when 'bye'		then exit
 		when 'del'		then @scope.delete @code.pop
 		when 'inspect'	then self
@@ -163,18 +173,14 @@ class Closure
 		end
 	end
 end
+$libpath = if RUBY_PLATFORM.downcase.include? "linux"	then ["./lib", "/usr/share/yorth/lib", "/usr/lib/yorth/**", "~/.yorth/lib/**"]
+		elsif RUBY_PLATFORM.downcase.include? "darwin"	then ["./lib", "/usr/share/yorth/lib", "/usr/lib/yorth/**", "~/.yorth/lib/**"]
+		elsif RUBY_PLATFORM.downcase.include? "win"		then ["./lib", "/Program Files/yorth/lib/**", "~/.yorth/lib/**"]
+														else ["./lib", "~/.yorth/lib/**"]
+end
 if inspect == "main"
 	main = Closure.new
-	rubydir = "."
-	rubypath = ["#{rubydir}/lib", "/usr/share/yorth/lib", "/usr/lib/yorth/*", "~/.yorth/lib"]
-	rubypath.each do |dir|
-		begin
-			Dir.glob("#{File.expand_path(dir)}/*.wye") do |library|
-				main.load library
-			end
-		rescue Errno::ENOENT
-		end
-	end
+	main.load "prelude.wye"
 	main.interpret unless ARGV[0]
 	debug = ["--debug", "-i", "/i"].include? ARGV[0].downcase
 	ARGV.slice! 0 if debug
