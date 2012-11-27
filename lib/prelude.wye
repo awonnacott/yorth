@@ -2,5 +2,5 @@
 { pop not pop not or not } and set
 { pop not pop not or } nand set
 { pop pop or not } nor set
-~ xor set
-= xnor set
+{ pop pop ~ } xor set
+{ pop pop = } xnor set

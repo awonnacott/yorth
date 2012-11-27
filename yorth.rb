@@ -40,7 +40,7 @@ class YorthString < YorthData
 	end
 end
 class YorthArray < YorthData
-	def initialize(strings = [], enclosure = Code.new)
+	def initialize strings = [], enclosure = Code.new
 		@value = []
 		while strings.include?(',')
 			comma = strings.index(',')
@@ -58,8 +58,11 @@ class Closure
 	end
 	def to_s;		@code.to_s;						end
 	def to_i;		nil;							end
-	def dup;	Marshal.load(Marshal.dump(self))	end
 	def inspect;	[@code, @scope].inspect;		end
+	def terminates;	@code == [];					end
+	def dup
+		Closure.new(Marshal.load(Marshal.dump(@code)), @enclosure)
+	end
 	def has? word
 		return true unless @scope[word].nil?
 		return false if @enclosure.nil?
@@ -128,7 +131,12 @@ class Closure
 		word = @code.pop
 		if word.to_i.to_s == word.to_s	then word.to_i
 		elsif word.is_a? YorthString	then word
-		elsif word.is_a? Closure		then word.dup.draw
+		elsif word.is_a? Closure
+			function = word.dup
+			until function.terminates
+				result = function.draw
+			end
+			result
 		elsif (has? word) && (args.include? :block)
 			resolve word
 		elsif has? word
@@ -159,24 +167,33 @@ class Closure
 			puts "#{item.class} #{item.inspect}"
 		when '}'
 			block = Closure.new(collect('{'),self)
-			            return block if args.include? :block
+			return block if args.include? :block
 			@code << block
-			            draw
+			draw
 		when ')'
 			collect '('
 			draw args
 		when 'set'
 			@scope[@code.pop] = draw :block
 			nil
-		else			raise YorthNameError.new("undefined word #{word}")
+		when 'if'
+			condition = draw
+			whentrue = draw
+			whenfalse = draw
+			if condition
+				whentrue
+			else
+				whenfalse
+			end
+		else raise YorthNameError.new("undefined word #{word}")
 		end
 		end
 	end
 end
-$libpath = if RUBY_PLATFORM.downcase.include? "linux"	then ["./lib", "/usr/share/yorth/lib", "/usr/lib/yorth/**", "~/.yorth/lib/**"]
-		elsif RUBY_PLATFORM.downcase.include? "darwin"	then ["./lib", "/usr/share/yorth/lib", "/usr/lib/yorth/**", "~/.yorth/lib/**"]
-		elsif RUBY_PLATFORM.downcase.include? "win"		then ["./lib", "/Program Files/yorth/lib/**", "~/.yorth/lib/**"]
-														else ["./lib", "~/.yorth/lib/**"]
+$libpath = if RUBY_PLATFORM.downcase.include? "linux"	then ["./lib",	"/usr/share/yorth/lib",	"/usr/lib/yorth/**",	"~/.yorth/lib/**"]
+		elsif RUBY_PLATFORM.downcase.include? "darwin"	then ["./lib",	"/usr/share/yorth/lib",	"/usr/lib/yorth/**",	"~/.yorth/lib/**"]
+		elsif RUBY_PLATFORM.downcase.include? "win"		then ["./lib",	"/Program Files/yorth/lib/**",					"~/.yorth/lib/**"]
+														else ["./lib",													"~/.yorth/lib/**"]
 end
 if inspect == "main"
 	main = Closure.new
