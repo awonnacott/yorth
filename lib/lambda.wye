@@ -1,0 +1,16 @@
+let true
+set true { lsp a pop a }
+let false
+set false { pop pop }
+let not
+set not { lsp a lsp b a pop b }
+let or
+set or { lsp a a a pop }
+let and
+set and { lsp a a pop a }
+let zero
+set zero true
+let succ
+set succ false
+let one
+set one succ zero

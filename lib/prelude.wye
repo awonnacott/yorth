@@ -1,6 +1,16 @@
-{ pop } e set
-{ pop not pop not or not } and set
-{ pop not pop not or } nand set
-{ pop pop or not } nor set
-{ pop pop ~ } xor set
-{ pop pop = } xnor set
+let e
+set e { pop }
+
+let and
+set and { not or not pop not pop }
+let nand
+set nand { or not pop not pop }
+let nor
+set nor { not or pop pop }
+let xor
+set xor { ~ pop pop }
+let xnor
+set xnor { = pop pop }
+
+let power
+set power { lsp b lsp e if = b 0 0 if = e 0 1 2 * b power b - e 1 }

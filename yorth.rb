@@ -1,11 +1,12 @@
 #!/usr/bin/env ruby
+require 'readline'
 class YorthError < Exception;			end
 class YorthTypeError < YorthError;		end
 class YorthArgumentError < YorthError;	end
 class YorthNameError < YorthError;		end
 class YorthData
-	attr_reader	:kind, :value
-	def initialize kind, value = nil
+	attr_reader	:value
+	def initialize kind = nil, value = nil
 		@kind = kind
 		@value = value
 	end
@@ -14,6 +15,9 @@ class YorthData
 	def to_i
 		raise YorthTypeError.new("cannot convert #{value.class} #{@value} to an int") unless @value.to_i.to_s == @value.to_s
 		@value.to_i
+	end
+	def inspect
+		[@kind, @value].inspect
 	end
 	def + other
 		begin
@@ -32,13 +36,6 @@ class YorthData
 		end
 	end
 end
-class YorthString < YorthData
-	def initialize(value = "")	@value = value.to_s	end
-	def + other
-		raise YorthTypeError.new("cannot concatenate YorthString #{@value} and #{other.class} #{other}") unless other.is_a? YorthString
-		YorthString.new @value + other.to_s
-	end
-end
 class YorthArray < YorthData
 	def initialize strings = [], enclosure = Code.new
 		@value = []
@@ -50,18 +47,41 @@ class YorthArray < YorthData
 		@value << Closure.new(strings, enclosure).draw
 	end
 end
+class YorthString
+	def initialize value = ""
+		@value = value.to_s
+	end
+	def dup
+		YorthString.new @value
+	end
+	def to_s
+		@value
+	end
+	def to_i
+		nil unless @value.to_i.to_s == @value.to_s
+		@value.to_i
+	end
+	def inspect
+		@value.inspect
+	end
+	def + other
+		raise YorthTypeError.new("cannot concatenate YorthString #{@value} and #{other.class} #{other}") unless other.is_a? YorthString
+		YorthString.new @value + other.to_s
+	end
+end
 class Closure
-	def initialize code = [], enclosure = Closure.new([],nil)
+	def initialize code = [], enclosure = Closure.new([],nil, nil), caller = Closure.new([], nil, nil)
 		@code = code
 		@enclosure = enclosure
 		@scope = Hash[]
+		@caller = caller
 	end
 	def to_s;		@code.to_s;						end
 	def to_i;		nil;							end
 	def inspect;	[@code, @scope].inspect;		end
 	def terminates;	@code == [];					end
-	def dup
-		Closure.new(Marshal.load(Marshal.dump(@code)), @enclosure)
+	def dup caller = Closure.new([], nil)
+		Closure.new(Marshal.load(Marshal.dump(@code)), @enclosure, caller)
 	end
 	def has? word
 		return true unless @scope[word].nil?
@@ -69,9 +89,33 @@ class Closure
 		@enclosure.has? word
 	end
 	def resolve word
-		return @scope[word] unless @scope[word].nil?
+		return @scope[word].value unless @scope[word].nil?
 		return nil if @enclosure.nil?
 		@enclosure.resolve word
+	end
+	def declare word
+		@scope[word] = YorthData.new
+		nil
+	end
+	def unassign word
+		if not @scope[word].nil?
+			@scope[word] = nil
+			nil
+		elsif @enclosure.nil?
+			nil
+		else
+			@enclosure.unassign word
+		end
+	end
+	def assign (word, value)
+		if @scope[word] != nil
+			@scope[word] = YorthData.new(value.class, value)
+			nil
+		elsif @enclosure.nil?
+			raise YorthNameError.new("'#{word}' has not been declared")
+		else
+			@enclosure.assign(word, value)
+		end
 	end
 	def load *args
 		args.flatten!
@@ -103,14 +147,75 @@ class Closure
 	def interpret
 		puts "yorth interpreter initialized"
 		begin
-			print "<= "
-			evaluate gets.chomp.split
+			evaluate Readline.readline("<= ", true).chomp.split
 		rescue YorthError => error
 			puts "#{error.class}: #{error}"
 		end while true
 	end
+	def parse code
+		i = 0
+		pos_f = []
+		pos_a = []
+		code.each do |word|
+			case word
+			when '('
+				stop_index = code.index(')')
+				raise YorthArgumentError.new("non-terminting comment") if stop_index.nil?
+				return code.take(i) + code[stop_index+1..code.length]
+			when '"'
+				stop_index = code[i..code.length].index('"')+i+2
+				raise YorthArgumentError.new("non-terminting string") if stop_index.nil?
+				return code.take(i) + [YorthString.new(code[i+1..stop_index-1].join(' '))] + code[stop_index+1..code.length]
+			when "'"
+				stop_index = code[i..code.length].index("'")+i+2
+				raise YorthArgumentError.new("non-terminting string") if stop_index.nil?
+				return code.take(i) + [YorthString.new(code[i+1..stop_index-1].join(' '))] + code[stop_index+1..code.length]
+			when '{'
+				pos_f << i
+			when '}'
+				raise YorthArgumentError.new("non-opened function") if pos_f.nil? or pos_f == []
+				beginpoint = pos_f.pop
+				if pos_f == []
+					beginning = code.shift(beginpoint)
+					code.shift(1)
+					function = Closure.new(code.shift(i-beginpoint-1).reverse, self)
+					function.reparse!
+					code.shift(1)
+					return beginning + [function] + code
+				end
+			when '['
+				pos_a << i
+			when ']'
+				raise YorthArgumentError.new("non-opened array") if pos_a.nil? or pos_a == []
+				beginpoint = pos_a.pop
+				if pos_f == []
+					beginning = code.shift(beginpoint)
+					code.shift(1)
+					array = YorthArray.new(code.shift(i-beginpoint-1).reverse, self)
+					code.shift(1)
+					return beginning + [array] + code
+				end
+			end
+			i += 1
+		end
+		raise YorthArgumentError.new("non-terminating function") unless pos_f == [] or pos_f.nil?
+		code
+	end
+	def reparse!
+		parsed = @code.reverse
+		begin
+			code = parsed
+			parsed = parse code
+		end until parsed == code
+		@code = code.reverse
+	end
 	def evaluate code
-		@code = code
+		parsed = code
+		begin
+			code = parsed
+			parsed = parse code
+		end until parsed == code
+		@code = code.reverse
 		until @code == []
 			begin
 				last = draw :nil
@@ -120,72 +225,70 @@ class Closure
 			end
 		end
 	end
-	def collect stop
-		stop_index = @code.rindex stop 
-		raise YorthArgumentError.new("non-terminting #{stop} clause") unless stop_index
-		@code.slice! stop_index
-		@code.slice!(stop_index, @code.length)
-	end
 	def draw *args
 		args = args.flatten.uniq
 		word = @code.pop
-		if word.to_i.to_s == word.to_s	then word.to_i
+		if word.respond_to? :to_i and word.to_i.to_s == word.to_s	then word.to_i
 		elsif word.is_a? YorthString	then word
 		elsif word.is_a? Closure
-			function = word.dup
+			return word if args.include? :block
+			function = word.dup self
 			until function.terminates
 				result = function.draw
 			end
 			result
-		elsif (has? word) && (args.include? :block)
-			resolve word
 		elsif has? word
 			@code << resolve(word)
-			draw
+			draw args
 		else			case word
 		when nil		then raise YorthArgumentError.new("ran out of values") unless args.include? :nil
 		when '='		then draw == draw
-		when "~"		then draw != draw
-		when '+'		then temp = draw; draw + temp
-		when '-'		then temp = draw; draw - temp
-		when '*'		then temp = draw; draw * temp
-		when '/'		then temp = draw; draw / temp
-		when 'or'		then temp = draw; draw or temp
-		when 'not'		then not draw
-		when '"'		then YorthString.new collect('"').join(" ")
-		when ']'		then YorthArray.new(collect('['), self)
-		when 'true'		then true
-		when 'false'	then false
-		when 'bye'		then exit
-		when 'del'		then @scope.delete @code.pop
-		when 'inspect'	then self
-		when 'load'		then load @code.pop
-		when 'pop'      then @enclosure.draw
+		when '~'		then draw != draw
+		when '>'		then draw > draw
+		when '<'		then draw < draw
+		when '+'		then draw + draw
+		when '-'		then draw - draw
+		when '*'		then draw * draw
 		when '.'		then puts draw
+		when '/'		then draw / draw
+		when 'bye'		then exit
+		when 'clear'	then @scope = Hash[]
+		when 'del'		then unassign @code.pop
+		when 'false'	then false
+		when 'inspect'	then self
+		when 'let'		then declare @code.pop
+		when 'load'		then load @code.pop
+		when 'lsp'		then name = @code.pop; declare name; assign(name, @enclosure.draw)
+		when 'not'		then not draw
+		when 'or'		then t1 = draw; t2 = draw; t1 or t2
+		when 'pop'		then @caller.draw args
+		when 'set'		then assign(@code.pop, draw(:block))
+		when 'true'		then true
 		when ".."
 			item = draw :block
 			puts "#{item.class} #{item.inspect}"
-		when '}'
-			block = Closure.new(collect('{'),self)
-			return block if args.include? :block
-			@code << block
-			draw
-		when ')'
-			collect '('
-			draw args
-		when 'set'
-			@scope[@code.pop] = draw :block
-			nil
 		when 'if'
-			condition = draw
-			whentrue = draw
-			whenfalse = draw
+			condition = draw :block
+			whentrue = draw :block
+			whenfalse = draw :block
+			if condition.is_a? Closure
+				@code << condition
+				condition = draw
+			end
 			if condition
+				if whentrue.is_a? Closure
+					@code << whentrue
+					whentrue = draw
+				end
 				whentrue
 			else
+				if whenfalse.is_a? Closure
+					@code << whenfalse
+					whenfalse = draw
+				end
 				whenfalse
 			end
-		else raise YorthNameError.new("undefined word #{word}")
+		else raise YorthNameError.new("undefined word #{word.inspect}")
 		end
 		end
 	end
