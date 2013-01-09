@@ -48,21 +48,13 @@ class YorthArray < YorthData
 	end
 end
 class YorthString
-	def initialize value = ""
-		@value = value.to_s
-	end
-	def dup
-		YorthString.new @value
-	end
-	def to_s
-		@value
-	end
+	def initialize value = "";	@value = value.to_s		end
+	def dup;					YorthString.new @value	end
+	def inspect;				@value.inspect			end
+	def to_s;					@value					end
 	def to_i
 		nil unless @value.to_i.to_s == @value.to_s
 		@value.to_i
-	end
-	def inspect
-		@value.inspect
 	end
 	def + other
 		raise YorthTypeError.new("cannot concatenate YorthString #{@value} and #{other.class} #{other}") unless other.is_a? YorthString
@@ -80,9 +72,7 @@ class Closure
 	def to_i;		nil;							end
 	def inspect;	[@code, @scope].inspect;		end
 	def terminates;	@code == [];					end
-	def dup caller = Closure.new([], nil)
-		Closure.new(Marshal.load(Marshal.dump(@code)), @enclosure, caller)
-	end
+	def dup caller = Closure.new([], nil); Closure.new(Marshal.load(Marshal.dump(@code)), @enclosure, caller)	end
 	def has? word
 		return true unless @scope[word].nil?
 		return false if @enclosure.nil?
@@ -147,7 +137,8 @@ class Closure
 	def interpret
 		puts "yorth interpreter initialized"
 		begin
-			evaluate Readline.readline("<= ", true).chomp.split
+			print "<= "
+			evaluate Readline.readline("", true).chomp.split
 		rescue YorthError => error
 			puts "#{error.class}: #{error}"
 		end while true
@@ -179,7 +170,7 @@ class Closure
 					beginning = code.shift(beginpoint)
 					code.shift(1)
 					function = Closure.new(code.shift(i-beginpoint-1).reverse, self)
-					function.reparse!
+					function.parse!
 					code.shift(1)
 					return beginning + [function] + code
 				end
@@ -201,7 +192,7 @@ class Closure
 		raise YorthArgumentError.new("non-terminating function") unless pos_f == [] or pos_f.nil?
 		code
 	end
-	def reparse!
+	def parse!
 		parsed = @code.reverse
 		begin
 			code = parsed
@@ -210,12 +201,8 @@ class Closure
 		@code = code.reverse
 	end
 	def evaluate code
-		parsed = code
-		begin
-			code = parsed
-			parsed = parse code
-		end until parsed == code
 		@code = code.reverse
+		parse!
 		until @code == []
 			begin
 				last = draw :nil
@@ -276,17 +263,19 @@ class Closure
 				condition = draw
 			end
 			if condition
-				if whentrue.is_a? Closure
+				if whentrue.is_a? Closure and not args.include? :block
 					@code << whentrue
-					whentrue = draw
+					draw args
+				else
+					whentrue
 				end
-				whentrue
 			else
-				if whenfalse.is_a? Closure
+				if whenfalse.is_a? Closure and not args.include? :block
 					@code << whenfalse
-					whenfalse = draw
+					draw args
+				else
+					whenfalse
 				end
-				whenfalse
 			end
 		else raise YorthNameError.new("undefined word #{word.inspect}")
 		end
