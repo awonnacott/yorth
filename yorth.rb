@@ -1,10 +1,12 @@
 #!/usr/bin/ruby
 require 'readline'
+
 class YorthError < Exception;			end
 class YorthTypeError < YorthError;		end
 class YorthArgumentError < YorthError;	end
 class YorthNameError < YorthError;		end
 class YorthSyntaxError < YorthError;	end
+
 class YorthData
 	attr_reader	:value
 	def initialize kind = nil, value = nil
@@ -35,6 +37,7 @@ class YorthData
 		end
 	end
 end
+
 class YorthArray
 	def initialize values = []
 		@values = values
@@ -60,6 +63,7 @@ class YorthArray
 		YorthArray.new(@values + other.to_a)
 	end
 end
+
 class YorthString
 	def initialize value;	@value = value.to_s				end
 	def dup;				YorthString.new @value			end
@@ -71,6 +75,7 @@ class YorthString
 		YorthString.new @value + other.to_s
 	end
 end
+
 class Closure
 	def initialize code = [], enclosure = Closure.new([],nil, nil), caller = Closure.new([], nil, nil)
 		@code = code
@@ -84,13 +89,14 @@ class Closure
 	def dup caller = Closure.new([], nil)
 		Closure.new(Marshal.load(Marshal.dump(@code)), @enclosure, caller)
 	end
-# Fix duplication to ensure proper superscope, fix variable location, resolution
+
 	def has? word
 		return true unless @scope[word].nil?
 		return false if @enclosure.nil?
 		@enclosure.has? word
 	end
 	def resolve word
+		raise YorthNameError.new("unbound variable #{word.inspect}") if @scope[word].value.nil? unless @scope[word].nil?
 		return @scope[word].value unless @scope[word].nil?
 		return nil if @enclosure.nil?
 		@enclosure.resolve word
@@ -113,6 +119,7 @@ class Closure
 			@enclosure.assign(word, value)
 		end
 	end
+
 	def load *args
 		args.flatten!
 		args.each do |arg|
@@ -172,6 +179,7 @@ class Closure
 		end
 		nil
 	end
+
 	def interpret
 		puts "yorth interpreter initialized"
 		begin
@@ -180,6 +188,7 @@ class Closure
 			puts "#{error.class}: #{error}"
 		end while true
 	end
+
 	def parse code
 		i = 0
 		pos_f = []
@@ -237,6 +246,7 @@ class Closure
 		end until parsed == code
 		@code = code.reverse
 	end
+
 	def evaluate code
 		@code = code.reverse
 		parse!
@@ -249,6 +259,7 @@ class Closure
 			end
 		end
 	end
+
 	def verify(file, pairs)
 		tested = 0
 		passed = 0
@@ -291,6 +302,7 @@ class Closure
 		end
 		puts "#{failed} failures in #{tested} tests."
 	end
+
 	def apply(caller = Closure.new, *args)
 		function = dup caller
 		result = function.draw args until function.terminates
@@ -301,6 +313,7 @@ class Closure
 		return item if args.include? :block or not item.is_a? Closure
 		item.apply self
 	end
+	
 	def draw *args
 		args = args.flatten.uniq
 		word = @code.pop
@@ -378,11 +391,13 @@ class Closure
 		end
 	end
 end
+
 $libpath = if RUBY_PLATFORM.downcase.include? "linux"	then [".",	"/usr/share/yorth/lib",	"/usr/lib/yorth/**",	"~/.local/share/yorth/lib"	"~/.yorth/lib/**"]
 		elsif RUBY_PLATFORM.downcase.include? "darwin"	then [".",	"/usr/share/yorth/lib",	"/usr/lib/yorth/**",	"~/Library/yorth"			"~/.yorth/lib/**"]
 		elsif RUBY_PLATFORM.downcase.include? "win"		then [".",	"/Program Files/yorth/lib/**", 					"%APPDATA%/yorth/**",		"~/.yorth/lib/**"]
 														else [".",																				"~/.yorth/lib/**"]
 end
+
 if inspect == "main"
 	main = Closure.new
 	main.load "prelude.wye"
