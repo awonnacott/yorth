@@ -1,20 +1,20 @@
 // This line is not parsed
 let e
-set e { pop }
+setf e { pop }
 
 let and
-set and { not or not pop not pop }
+setf and { not or not pop not pop }
 let nand
-set nand { or not pop not pop }
+setf nand { or not pop not pop }
 let nor
-set nor { not or pop pop }
+setf nor { not or pop pop }
 let xor
-set xor { ~ pop pop }
+setf xor { ~ pop pop }
 let xnor
-set xnor { = pop pop }
+setf xnor { = pop pop }
 
 let power
-set power { lsp b lsp e if { = b 0 } 0 { if = e 0 1 { * b power b - e 1 } } }
+setf power { get b get e if { = b 0 } 0 { if = e 0 1 { * b power b - e 1 } } }
 
 let filter
-set filter { def bool lsp list enum { lsp x if bool x x nil } list }
+setf filter { def bool get list enum { get x if bool x x nil } list }

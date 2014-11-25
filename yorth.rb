@@ -260,7 +260,7 @@ class Closure
 		end
 	end
 
-	def verify(file, pairs)
+	def verify(file, pairs, verbose=true)
 		tested = 0
 		passed = 0
 		failed = 0
@@ -286,16 +286,18 @@ class Closure
 				end
 			end
 			if fileout != pairout then
-				puts "Evaluated       #{code.join(' ')}"
-				puts "Got             #{fileout}"
-				puts "Should have got #{pairout}"
+				puts "Evaluated      #{code.join(' ')}"
+				puts "Expected       #{pairout}"
+				puts "Got            #{fileout}"
 				puts "TEST FAILED."
 				tested += 1
 				failed += 1
 			else
-				#puts "Evaluated       #{code.join(' ')}"
-				#puts "Got             #{fileout}"
-				#puts "Test passed."
+				if verbose
+					puts "Evaluated      #{code.join(' ')}"
+					puts "Got            #{fileout}"
+					puts "Test passed."
+				end
 				tested += 1
 				passed += 1
 			end
@@ -339,13 +341,13 @@ class Closure
 		when 'inspect'	then self
 		when 'let'		then declare @code.pop
 		when 'load'		then load @code.pop
-		when 'lst'		then name = @code.pop; declare name; assign(name, draw(:block))
-		when 'lsp'		then name = @code.pop; declare name; assign(name, @caller.draw(args))
+		when 'get'		then name = @code.pop; declare name; assign(name, @caller.draw(args))
 		when 'nil'		then nil
 		when 'not'		then not draw
 		when 'or'		then t1 = draw; t2 = draw; t1 or t2
 		when 'pop'		then @caller.draw args
-		when 'set'		then assign(@code.pop, draw(:block))
+		when 'set'		then assign(@code.pop, draw(args))
+		when 'setf'		then assign(@code.pop, draw(:block,args))
 		when 'true'		then true
 		when ".."
 			item = draw :block

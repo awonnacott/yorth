@@ -3,9 +3,9 @@ This is an example of if
 => true
 
 This is an example of enum
-<= enum { lsp x + 1 x } [ 1 , 2 , 3 ]
+<= enum { get x + 1 x } [ 1 , 2 , 3 ]
 => [ 2 , 3 , 4 ]
 
 This is a more complicated use of enum - enumception.
-<= enum { lsp x enum { lsp y + 1 y } x } [ [ 1 , 2 ] , [ 2 , 2 ] , [ 3 , 2 ] ]
+<= enum { get x enum { get y + 1 y } x } [ [ 1 , 2 ] , [ 2 , 2 ] , [ 3 , 2 ] ]
 => [ [ 2 , 3 ] , [ 3 , 3 ] , [ 4 , 3 ] ]
