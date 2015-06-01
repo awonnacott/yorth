@@ -151,17 +151,19 @@ class Closure
 				end
 			elsif libtype == "wyl"
 				file  = []
-				pairs = Hash[]
+				pairs = []
 				input = ""
 				begin
+					i = 0
 					File.open(library).each do |line|
 						code = line.split
 						if code[0] == "<="
 							file.push(code[1..-1])
 							input   = code[1..-1]
 						elsif code[0] == "=>"
-							pairs[input.to_s] = line[3..-1]
+							pairs[i]     = line[3..-1]
 							input        = nil
+							i           += 1
 						end
 					end
 					puts "'#{library}' loaded"
@@ -275,7 +277,7 @@ class Closure
 					raise YorthTypeError.new("#{error} in #{code}")
 				end
 			end
-			@code = pairs[code.to_s].split.reverse
+			@code = pairs[tested].split.reverse
 			parse!
 			until @code == []
 				begin
@@ -290,19 +292,19 @@ class Closure
 				puts "Expected       #{pairout}"
 				puts "Got            #{fileout}"
 				puts "TEST FAILED."
-				tested += 1
 				failed += 1
+				tested += 1
 			else
 				if verbose
 					puts "Evaluated      #{code.join(' ')}"
-					puts "Got            #{fileout}"
-					puts "Test passed."
+					puts "Got            #{fileout}" unless pairs[tested].strip == ""
+					puts "Test passed." unless pairs[tested].strip == ""
 				end
+				passed += 1 unless pairs[tested].strip == ""
 				tested += 1
-				passed += 1
 			end
 		end
-		puts "#{failed} failures in #{tested} tests."
+		puts "#{failed} failures in #{failed+passed} tests (#{tested} instructions)."
 	end
 
 	def apply(caller = Closure.new, *args)
