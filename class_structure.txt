@@ -1,0 +1,7 @@
+YObject
+	YClosure
+	YLiteral
+		YNum
+	YData
+		YArray
+		YString
